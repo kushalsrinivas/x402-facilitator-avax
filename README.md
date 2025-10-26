@@ -8,7 +8,9 @@ A gasless payment protocol on Binance Smart Chain that enables users to make USD
 
 ## Overview
 
-B402 uses EIP-712 signatures to authorize payments. Users sign a payment authorization off-chain, and a relayer executes the transaction on-chain, paying the gas fees. This eliminates the need for users to hold native tokens for gas.
+B402 provides gasless payment functionality similar to Coinbase's x402 protocol, adapted for Binance Smart Chain. Users sign payment authorizations off-chain using EIP-712 signatures, and a relayer contract executes transactions on-chain while covering gas fees. This eliminates the need for users to hold BNB for transaction fees.
+
+**Key Difference from x402:** B402 uses a relayer pattern to support standard ERC20 tokens (like BSC USDT) that lack native EIP-3009 support. This provides the same gasless payment experience while working with the existing BSC token ecosystem.
 
 ## Architecture
 
@@ -55,16 +57,19 @@ Main contract for gasless payments.
 
 **Key Functions:**
 
-- `executeTransfer(Authorization auth, bytes signature)`: Execute a payment with signature
-- `whitelistToken(address token, bool status)`: Add/remove supported tokens (owner only)
+- `transferWithAuthorization(...)`: Execute gasless payment with EIP-712 signature
+- `setTokenWhitelist(address token, bool status)`: Add/remove supported tokens (owner only)
 - `pause()/unpause()`: Emergency controls (owner only)
+- `cancelAuthorization(...)`: Cancel pending authorization
 
 **Security Features:**
 
 - EIP-712 typed structured data hashing
 - Nonce-based replay protection
-- Token whitelist
-- Pausable functionality
+- Token whitelist (only approved tokens can be used)
+- Reentrancy protection
+- Pre-flight balance and allowance checks
+- Pausable functionality for emergencies
 - Ownable access control
 
 ### Deployed Contracts
@@ -270,6 +275,22 @@ struct Authorization {
 keccak256("Authorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)")
 ```
 
+## Comparison with x402
+
+B402 provides x402-style gasless payments for BSC. See [TECHNICAL_COMPARISON.md](TECHNICAL_COMPARISON.md) for detailed comparison.
+
+**Use B402 when:**
+- Building on BSC (mainnet or testnet)
+- Need USDT support
+- Want flexibility for multiple ERC20 tokens
+
+**Use x402 when:**
+- Building on Base, Ethereum, or Solana
+- USDC is sufficient
+- Target chain has native EIP-3009 token support
+
+Both protocols achieve the same user experience of gasless payments through different technical implementations.
+
 ## Disclaimer
 
 This software is provided "as is" without warranty of any kind. Users assume all risks associated with smart contract usage. The contracts have not been professionally audited. See [DISCLAIMER.md](DISCLAIMER.md) for complete legal terms.
@@ -281,6 +302,7 @@ MIT
 ## Documentation
 
 See additional documentation:
+- [Technical Comparison with x402](TECHNICAL_COMPARISON.md)
 - [Architecture Details](ARCHITECTURE_EXPLAINED.md)
 - [User Guide](USER_GUIDE.md)
 - [Quick Start](QUICK_START.md)
