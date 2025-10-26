@@ -2,6 +2,10 @@
 
 A gasless payment protocol on Binance Smart Chain that enables users to make USDT payments without holding BNB for gas fees.
 
+## Important Notice
+
+**USE AT YOUR OWN RISK.** This software is provided "as is" without warranty. The smart contracts have not been professionally audited. See [DISCLAIMER.md](DISCLAIMER.md) for full terms.
+
 ## Overview
 
 B402 uses EIP-712 signatures to authorize payments. Users sign a payment authorization off-chain, and a relayer executes the transaction on-chain, paying the gas fees. This eliminates the need for users to hold native tokens for gas.
@@ -265,6 +269,10 @@ struct Authorization {
 ```
 keccak256("Authorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)")
 ```
+
+## Disclaimer
+
+This software is provided "as is" without warranty of any kind. Users assume all risks associated with smart contract usage. The contracts have not been professionally audited. See [DISCLAIMER.md](DISCLAIMER.md) for complete legal terms.
 
 ## License
 
