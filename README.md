@@ -1,10 +1,58 @@
 # B402 Protocol
 
-A gasless payment protocol on Binance Smart Chain that enables users to make USDT payments without holding BNB for gas fees.
+> BSC-native, multi-token gasless payment facilitator
+
+Process x402-style payments on Binance Smart Chain with one drop-in endpoint. No API keys, no blockchain headaches—just plug and play.
+
+---
+
+## Quick Start
+
+**Facilitator URL:** `https://facilitator.b402.ai`
+
+### Drop-in Setup
+
+1. **Point your merchant at the facilitator** and you're done.
+
+2. Choose a **network**: `bsc` (mainnet) or `bsc-testnet`
+
+3. **Ship**. The facilitator verifies & settles payments on your behalf.
+
+```bash
+# Try the Echo Merchant demo
+cd examples/echo-merchant
+npm install
+export MERCHANT_PRIVATE_KEY=0x...
+npm start
+
+# Open http://localhost:3001
+```
+
+**[→ Full Getting Started Guide](docs/GETTING_STARTED.md)**
+
+---
+
+## Features
+
+### ⚡ Gasless Experience
+No BNB required for buyers or merchants. The facilitator covers network fees and handles verification/settlement so you can focus on your product.
+
+### 🔓 No API Keys Required
+Open API—no registration, no authentication. Just plug & play.
+
+### 🌐 BSC Native
+Built specifically for Binance Smart Chain ecosystem with USD1, USDT, USDC support.
+
+### 🚀 Drop-in Integration
+Compatible with x402 protocol standards. If you're using PayAI, switching to B402 takes 2 minutes.
+
+---
 
 ## Important Notice
 
 **USE AT YOUR OWN RISK.** This software is provided "as is" without warranty. The smart contracts have not been professionally audited. See [DISCLAIMER.md](DISCLAIMER.md) for full terms.
+
+---
 
 ## Overview
 
@@ -301,9 +349,30 @@ MIT
 
 ## Documentation
 
-See additional documentation:
+### Getting Started
+- **[Getting Started Guide](docs/GETTING_STARTED.md)** - Quick setup for merchants and clients
+- **[API Documentation](API_DOCUMENTATION.md)** - Complete API reference
+- **[Echo Merchant Demo](examples/echo-merchant/)** - Test payment flow instantly
+
+### Technical Details
 - [Technical Comparison with x402](TECHNICAL_COMPARISON.md)
 - [Architecture Details](ARCHITECTURE_EXPLAINED.md)
 - [User Guide](USER_GUIDE.md)
 - [Quick Start](QUICK_START.md)
 - [Deployment Guide](DEPLOYMENT_GUIDE.md)
+
+### Try It Now
+
+```bash
+# Merchant: Accept payments
+cd examples/echo-merchant && npm install && npm start
+
+# Client: Send payments
+cd frontend && npm install && npm start
+```
+
+## Support
+
+- **GitHub**: [Vistara-Labs/b402](https://github.com/Vistara-Labs/b402)
+- **Issues**: [Report bugs](https://github.com/Vistara-Labs/b402/issues)
+- **Docs**: [Full documentation](docs/GETTING_STARTED.md)

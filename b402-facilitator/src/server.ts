@@ -88,8 +88,24 @@ app.post('/verify', async (req, res) => {
       });
     }
 
+    if (!paymentPayload.payload || !paymentPayload.payload.authorization || !paymentPayload.payload.signature) {
+      return res.status(400).json({
+        isValid: false,
+        invalidReason: 'Invalid payload structure: missing authorization or signature',
+      });
+    }
+
     const { authorization, signature } = paymentPayload.payload;
     const network = paymentRequirements.network || 'bsc';
+
+    // Validate authorization fields
+    if (!authorization.from || !authorization.to || !authorization.value ||
+        !authorization.validAfter || !authorization.validBefore || !authorization.nonce) {
+      return res.status(400).json({
+        isValid: false,
+        invalidReason: 'Invalid authorization: missing required fields (from, to, value, validAfter, validBefore, nonce)',
+      });
+    }
 
     // Select provider based on NETWORK env var
     const envNetwork = process.env.NETWORK || 'testnet';
@@ -223,8 +239,26 @@ app.post('/settle', async (req, res) => {
       });
     }
 
+    if (!paymentPayload.payload || !paymentPayload.payload.authorization || !paymentPayload.payload.signature) {
+      return res.status(400).json({
+        success: false,
+        network: 'bsc',
+        errorReason: 'Invalid payload structure: missing authorization or signature',
+      });
+    }
+
     const { authorization, signature } = paymentPayload.payload;
     const network = paymentRequirements.network || 'bsc';
+
+    // Validate authorization fields
+    if (!authorization.from || !authorization.to || !authorization.value ||
+        !authorization.validAfter || !authorization.validBefore || !authorization.nonce) {
+      return res.status(400).json({
+        success: false,
+        network,
+        errorReason: 'Invalid authorization: missing required fields (from, to, value, validAfter, validBefore, nonce)',
+      });
+    }
 
     // Select provider based on NETWORK env var
     const envNetwork = process.env.NETWORK || 'testnet';
@@ -296,10 +330,100 @@ app.post('/settle', async (req, res) => {
 });
 
 /**
+ * GET /
+ * Root endpoint - API information and documentation
+ */
+app.get('/', (_req, res) => {
+  const envNetwork = process.env.NETWORK || 'testnet';
+  const isMainnet = envNetwork === 'mainnet';
+
+  res.json({
+    service: 'B402 Facilitator',
+    version: '1.0.0',
+    network: isMainnet ? 'bsc-mainnet' : 'bsc-testnet',
+    chainId: isMainnet ? 56 : 97,
+    relayerContract: B402_RELAYER_ADDRESS,
+    endpoints: {
+      '/': 'GET - API information',
+      '/health': 'GET - Health check',
+      '/list': 'GET - List supported tokens',
+      '/verify': 'POST - Verify payment authorization',
+      '/settle': 'POST - Execute payment on-chain'
+    }
+  });
+});
+
+/**
+ * GET /list
+ * List supported networks and assets (matches PayAI API)
+ */
+app.get('/list', async (_req, res) => {
+  try {
+    // Known token addresses on BSC
+    const USDT_MAINNET = '0x55d398326f99059fF775485246999027B3197955';
+    const USD1_MAINNET = '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d';
+    const USDC_MAINNET = '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d';
+    const USDT_TESTNET = '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd';
+
+    const envNetwork = process.env.NETWORK || 'testnet';
+    const isMainnet = envNetwork === 'mainnet';
+
+    const supportedAssets = isMainnet
+      ? [USDT_MAINNET, USD1_MAINNET, USDC_MAINNET]
+      : [USDT_TESTNET];
+
+    const selectedProvider = isMainnet ? provider : testnetProvider;
+
+    // Fetch token info for all supported assets
+    const tokenDetails = await Promise.all(
+      supportedAssets.map(async (tokenAddress) => {
+        const info = await getTokenInfo(tokenAddress, selectedProvider);
+        return {
+          asset: tokenAddress,
+          symbol: info.symbol,
+          name: info.name,
+          decimals: info.decimals,
+          network: isMainnet ? 'bsc' : 'bsc-testnet'
+        };
+      })
+    );
+
+    res.json({
+      facilitator: 'b402',
+      version: '1.0.0',
+      networks: [
+        {
+          network: isMainnet ? 'bsc' : 'bsc-testnet',
+          chainId: isMainnet ? 56 : 97,
+          relayerContract: B402_RELAYER_ADDRESS,
+          supportedAssets: tokenDetails
+        }
+      ],
+      features: [
+        'gasless-payments',
+        'eip712-signatures',
+        'dynamic-token-support'
+      ],
+      endpoints: {
+        verify: '/verify',
+        settle: '/settle',
+        list: '/list',
+        health: '/health'
+      }
+    });
+  } catch (error: any) {
+    console.error('List error:', error);
+    res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /health
  * Health check endpoint
  */
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
     service: 'b402-facilitator',
