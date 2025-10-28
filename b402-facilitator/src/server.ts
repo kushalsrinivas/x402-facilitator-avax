@@ -10,6 +10,10 @@ import rateLimit from 'express-rate-limit';
 dotenv.config();
 
 const app = express();
+
+// Trust Railway proxy (required for rate limiting)
+app.set('trust proxy', 1);
+
 app.use(cors());
 app.use(express.json());
 
