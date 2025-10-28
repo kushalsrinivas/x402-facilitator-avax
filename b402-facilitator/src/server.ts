@@ -395,12 +395,18 @@ app.post('/verify', async (req, res) => {
       duration_ms: Date.now() - startTime
     });
 
+    // Log successful verification (compact)
+    console.log(`✅ Verify: ${authorization.from.slice(0, 8)} → ${authorization.to.slice(0, 8)} | ${ethers.formatUnits(authorization.value, tokenInfo.decimals)} ${tokenInfo.symbol}`);
+
     res.json({
       isValid: true,
       payer: authorization.from,
     });
   } catch (error: any) {
-    // Don't log errors - spams Railway logs
+    // Log errors but keep compact (one line per error)
+    const errorMsg = error.message?.substring(0, 100) || 'Unknown error';
+    console.error(`❌ Verify failed: ${errorMsg}`);
+
     verifyRequestsTotal.inc({ status: 'error' });
     httpRequestDuration.labels('POST', '/verify', '500').observe((Date.now() - startTime) / 1000);
 
@@ -491,6 +497,9 @@ app.post('/settle', async (req, res) => {
     const receipt = await tx.wait();
     const txDuration = (Date.now() - txStartTime) / 1000;
 
+    // Log successful settlement (compact)
+    console.log(`✅ Settle: ${tx.hash.slice(0, 10)}... | Block ${receipt.blockNumber} | Gas: ${receipt.gasUsed.toString()} | ${txDuration.toFixed(2)}s`);
+
     // Update metrics
     settleRequestsTotal.inc({ status: 'success' });
     settleGasUsed.set(Number(receipt.gasUsed));
@@ -527,7 +536,10 @@ app.post('/settle', async (req, res) => {
       blockNumber: receipt.blockNumber,
     });
   } catch (error: any) {
-    // Don't log errors - spams Railway logs
+    // Log errors but keep compact (one line per error)
+    const errorMsg = error.message?.substring(0, 100) || 'Unknown error';
+    console.error(`❌ Settle failed: ${errorMsg}`);
+
     settleRequestsTotal.inc({ status: 'failed' });
     httpRequestDuration.labels('POST', '/settle', '500').observe((Date.now() - startTime) / 1000);
 
