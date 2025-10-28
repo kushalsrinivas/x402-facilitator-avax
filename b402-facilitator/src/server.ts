@@ -3,12 +3,63 @@ import express from 'express';
 import cors from 'cors';
 import { ethers, Wallet, Contract } from 'ethers';
 import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
+import promClient from 'prom-client';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Supabase setup
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
+const supabase = SUPABASE_URL && SUPABASE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+if (!supabase) {
+  console.warn('⚠️  Supabase not configured - logging will be disabled');
+}
+
+// Prometheus metrics setup
+const register = new promClient.Registry();
+promClient.collectDefaultMetrics({ register });
+
+// Custom metrics
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status'],
+  registers: [register]
+});
+
+const verifyRequestsTotal = new promClient.Counter({
+  name: 'b402_verify_requests_total',
+  help: 'Total number of verify requests',
+  labelNames: ['status'],
+  registers: [register]
+});
+
+const settleRequestsTotal = new promClient.Counter({
+  name: 'b402_settle_requests_total',
+  help: 'Total number of settle requests',
+  labelNames: ['status'],
+  registers: [register]
+});
+
+const settleGasUsed = new promClient.Gauge({
+  name: 'b402_settle_gas_used',
+  help: 'Gas used in settle transactions',
+  registers: [register]
+});
+
+const settleTransactionTime = new promClient.Histogram({
+  name: 'b402_settle_transaction_seconds',
+  help: 'Time taken for settle transactions',
+  registers: [register]
+});
 
 // Configuration
 const BSC_RPC = process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org';
@@ -38,6 +89,25 @@ const ERC20_ABI = [
   "function symbol() view returns (string)",
   "function name() view returns (string)"
 ];
+
+/**
+ * Log request to Supabase
+ */
+async function logToSupabase(table: string, data: any) {
+  if (!supabase) return;
+
+  try {
+    const { error } = await supabase
+      .from(table)
+      .insert(data);
+
+    if (error) {
+      console.error(`Supabase logging error (${table}):`, error.message);
+    }
+  } catch (error: any) {
+    console.error(`Supabase logging failed (${table}):`, error.message);
+  }
+}
 
 /**
  * Get token information dynamically from the blockchain
@@ -74,14 +144,13 @@ async function getTokenInfo(tokenAddress: string, provider: ethers.JsonRpcProvid
  * Verify payment signature (matches x402 API)
  */
 app.post('/verify', async (req, res) => {
-  console.log('\n🎯 ════════════════════════════════════════════════════════');
-  console.log('   PAYMENT INTENT RECEIVED');
-  console.log('════════════════════════════════════════════════════════\n');
+  const startTime = Date.now();
 
   try {
     const { paymentPayload, paymentRequirements } = req.body;
 
     if (!paymentPayload || !paymentRequirements) {
+      verifyRequestsTotal.inc({ status: 'invalid' });
       return res.status(400).json({
         isValid: false,
         invalidReason: 'Missing paymentPayload or paymentRequirements',
@@ -89,6 +158,7 @@ app.post('/verify', async (req, res) => {
     }
 
     if (!paymentPayload.payload || !paymentPayload.payload.authorization || !paymentPayload.payload.signature) {
+      verifyRequestsTotal.inc({ status: 'invalid' });
       return res.status(400).json({
         isValid: false,
         invalidReason: 'Invalid payload structure: missing authorization or signature',
@@ -101,6 +171,7 @@ app.post('/verify', async (req, res) => {
     // Validate authorization fields
     if (!authorization.from || !authorization.to || !authorization.value ||
         !authorization.validAfter || !authorization.validBefore || !authorization.nonce) {
+      verifyRequestsTotal.inc({ status: 'invalid' });
       return res.status(400).json({
         isValid: false,
         invalidReason: 'Invalid authorization: missing required fields (from, to, value, validAfter, validBefore, nonce)',
@@ -114,16 +185,6 @@ app.post('/verify', async (req, res) => {
 
     // Get token info dynamically
     const tokenInfo = await getTokenInfo(paymentPayload.token, selectedProvider);
-
-    console.log('📋 Intent Details:');
-    console.log(`   From:   ${authorization.from}`);
-    console.log(`   To:     ${authorization.to}`);
-    console.log(`   Token:  ${tokenInfo.name} (${tokenInfo.symbol})`);
-    console.log(`   Amount: ${ethers.formatUnits(authorization.value, tokenInfo.decimals)} ${tokenInfo.symbol}`);
-    console.log(`   Nonce:  ${authorization.nonce.slice(0, 20)}...`);
-    console.log(`   Network: ${network}`);
-    console.log('');
-    console.log('🔍 Verifying signature...');
 
     // Create relayer contract instance
     const relayer = new Contract(
@@ -151,60 +212,138 @@ app.post('/verify', async (req, res) => {
       ],
     };
 
-    console.log('🔑 Domain:', JSON.stringify(domain, null, 2));
-    console.log('📝 Authorization:', JSON.stringify({
-      from: authorization.from,
-      to: authorization.to,
-      value: authorization.value,
-      validAfter: authorization.validAfter,
-      validBefore: authorization.validBefore,
-      nonce: authorization.nonce
-    }, null, 2));
-
     const recovered = ethers.verifyTypedData(domain, types, authorization, signature);
 
-    console.log(`   Expected signer: ${authorization.from}`);
-    console.log(`   Recovered signer: ${recovered}`);
+    const isValid = recovered.toLowerCase() === authorization.from.toLowerCase();
+    let invalidReason = '';
 
-    if (recovered.toLowerCase() !== authorization.from.toLowerCase()) {
-      console.log('❌ Signature verification FAILED');
-      console.log('');
+    if (!isValid) {
+      invalidReason = "Invalid signature";
+      verifyRequestsTotal.inc({ status: 'failed' });
+
+      // Log to Supabase
+      await logToSupabase('verify_requests', {
+        payer: authorization.from,
+        recipient: authorization.to,
+        token: paymentPayload.token,
+        token_symbol: tokenInfo.symbol,
+        amount: authorization.value,
+        amount_formatted: ethers.formatUnits(authorization.value, tokenInfo.decimals),
+        nonce: authorization.nonce,
+        network,
+        chain_id: chainId,
+        is_valid: false,
+        invalid_reason: invalidReason,
+        timestamp: new Date().toISOString(),
+        duration_ms: Date.now() - startTime
+      });
+
       return res.json({
         isValid: false,
-        invalidReason: "Invalid signature",
+        invalidReason,
       });
     }
-
-    console.log('✅ Signature verified!');
-    console.log(`   Signer: ${recovered}`);
 
     // Check nonce not used
     const isUsed = await relayer.authorizationState(authorization.from, authorization.nonce);
     if (isUsed) {
+      invalidReason = "Nonce already used";
+      verifyRequestsTotal.inc({ status: 'failed' });
+
+      await logToSupabase('verify_requests', {
+        payer: authorization.from,
+        recipient: authorization.to,
+        token: paymentPayload.token,
+        token_symbol: tokenInfo.symbol,
+        amount: authorization.value,
+        amount_formatted: ethers.formatUnits(authorization.value, tokenInfo.decimals),
+        nonce: authorization.nonce,
+        network,
+        chain_id: chainId,
+        is_valid: false,
+        invalid_reason: invalidReason,
+        timestamp: new Date().toISOString(),
+        duration_ms: Date.now() - startTime
+      });
+
       return res.json({
         isValid: false,
-        invalidReason: "Nonce already used",
+        invalidReason,
       });
     }
 
     // Check timing
     const now = Math.floor(Date.now() / 1000);
     if (now < authorization.validAfter) {
+      invalidReason = "Authorization not yet valid";
+      verifyRequestsTotal.inc({ status: 'failed' });
+
+      await logToSupabase('verify_requests', {
+        payer: authorization.from,
+        recipient: authorization.to,
+        token: paymentPayload.token,
+        token_symbol: tokenInfo.symbol,
+        amount: authorization.value,
+        amount_formatted: ethers.formatUnits(authorization.value, tokenInfo.decimals),
+        nonce: authorization.nonce,
+        network,
+        chain_id: chainId,
+        is_valid: false,
+        invalid_reason: invalidReason,
+        timestamp: new Date().toISOString(),
+        duration_ms: Date.now() - startTime
+      });
+
       return res.json({
         isValid: false,
-        invalidReason: "Authorization not yet valid",
+        invalidReason,
       });
     }
     if (now >= authorization.validBefore) {
+      invalidReason = "Authorization expired";
+      verifyRequestsTotal.inc({ status: 'failed' });
+
+      await logToSupabase('verify_requests', {
+        payer: authorization.from,
+        recipient: authorization.to,
+        token: paymentPayload.token,
+        token_symbol: tokenInfo.symbol,
+        amount: authorization.value,
+        amount_formatted: ethers.formatUnits(authorization.value, tokenInfo.decimals),
+        nonce: authorization.nonce,
+        network,
+        chain_id: chainId,
+        is_valid: false,
+        invalid_reason: invalidReason,
+        timestamp: new Date().toISOString(),
+        duration_ms: Date.now() - startTime
+      });
+
       return res.json({
         isValid: false,
-        invalidReason: "Authorization expired",
+        invalidReason,
       });
     }
 
-    console.log('✅ All checks passed!');
-    console.log('');
-    console.log('════════════════════════════════════════════════════════\n');
+    verifyRequestsTotal.inc({ status: 'success' });
+    httpRequestDuration.labels('POST', '/verify', '200').observe((Date.now() - startTime) / 1000);
+
+    // Log successful verification to Supabase
+    await logToSupabase('verify_requests', {
+      payer: authorization.from,
+      recipient: authorization.to,
+      token: paymentPayload.token,
+      token_symbol: tokenInfo.symbol,
+      amount: authorization.value,
+      amount_formatted: ethers.formatUnits(authorization.value, tokenInfo.decimals),
+      nonce: authorization.nonce,
+      network,
+      chain_id: chainId,
+      is_valid: true,
+      invalid_reason: null,
+      timestamp: new Date().toISOString(),
+      duration_ms: Date.now() - startTime
+    });
 
     res.json({
       isValid: true,
@@ -212,6 +351,9 @@ app.post('/verify', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Verify error:', error);
+    verifyRequestsTotal.inc({ status: 'error' });
+    httpRequestDuration.labels('POST', '/verify', '500').observe((Date.now() - startTime) / 1000);
+
     res.status(500).json({
       isValid: false,
       invalidReason: error.message,
@@ -224,14 +366,13 @@ app.post('/verify', async (req, res) => {
  * Execute payment on-chain (matches x402 API)
  */
 app.post('/settle', async (req, res) => {
-  console.log('\n💰 ════════════════════════════════════════════════════════');
-  console.log('   SETTLING PAYMENT ON-CHAIN');
-  console.log('════════════════════════════════════════════════════════\n');
+  const startTime = Date.now();
 
   try {
     const { paymentPayload, paymentRequirements } = req.body;
 
     if (!paymentPayload || !paymentRequirements) {
+      settleRequestsTotal.inc({ status: 'invalid' });
       return res.status(400).json({
         success: false,
         network: 'bsc',
@@ -240,6 +381,7 @@ app.post('/settle', async (req, res) => {
     }
 
     if (!paymentPayload.payload || !paymentPayload.payload.authorization || !paymentPayload.payload.signature) {
+      settleRequestsTotal.inc({ status: 'invalid' });
       return res.status(400).json({
         success: false,
         network: 'bsc',
@@ -253,6 +395,7 @@ app.post('/settle', async (req, res) => {
     // Validate authorization fields
     if (!authorization.from || !authorization.to || !authorization.value ||
         !authorization.validAfter || !authorization.validBefore || !authorization.nonce) {
+      settleRequestsTotal.inc({ status: 'invalid' });
       return res.status(400).json({
         success: false,
         network,
@@ -278,14 +421,6 @@ app.post('/settle', async (req, res) => {
     const sig = ethers.Signature.from(signature);
 
     // Execute transferWithAuthorization
-    console.log('📤 Submitting transaction to BSC Testnet...');
-    console.log(`   ${authorization.from} → ${authorization.to}`);
-    console.log(`   Token:  ${tokenInfo.name} (${tokenInfo.symbol})`);
-    console.log(`   Amount: ${ethers.formatUnits(authorization.value, tokenInfo.decimals)} ${tokenInfo.symbol}`);
-    console.log(`   Contract: ${paymentPayload.token}`);
-    console.log(`   Relayer: ${B402_RELAYER_ADDRESS}`);
-    console.log('');
-
     const tx = await relayer.transferWithAuthorization(
       paymentPayload.token, // USDT address
       authorization.from,
@@ -302,15 +437,37 @@ app.post('/settle', async (req, res) => {
       }
     );
 
-    console.log(`   Transaction hash: ${tx.hash}`);
-    console.log('   ⏳ Waiting for confirmation...');
-    console.log('');
+    const txStartTime = Date.now();
     const receipt = await tx.wait();
-    console.log(`✅ Payment settled successfully!`);
-    console.log(`   Block: ${receipt.blockNumber}`);
-    console.log(`   Gas used: ${receipt.gasUsed.toString()}`);
-    console.log('');
-    console.log('════════════════════════════════════════════════════════\n');
+    const txDuration = (Date.now() - txStartTime) / 1000;
+
+    // Update metrics
+    settleRequestsTotal.inc({ status: 'success' });
+    settleGasUsed.set(Number(receipt.gasUsed));
+    settleTransactionTime.observe(txDuration);
+    httpRequestDuration.labels('POST', '/settle', '200').observe((Date.now() - startTime) / 1000);
+
+    // Log to Supabase
+    await logToSupabase('settle_transactions', {
+      transaction_hash: receipt.hash,
+      payer: authorization.from,
+      recipient: authorization.to,
+      token: paymentPayload.token,
+      token_symbol: tokenInfo.symbol,
+      amount: authorization.value,
+      amount_formatted: ethers.formatUnits(authorization.value, tokenInfo.decimals),
+      nonce: authorization.nonce,
+      network,
+      chain_id: chainId,
+      block_number: receipt.blockNumber,
+      gas_used: receipt.gasUsed.toString(),
+      gas_price: receipt.gasPrice?.toString() || '0',
+      success: true,
+      error_reason: null,
+      transaction_time_ms: txDuration * 1000,
+      total_time_ms: Date.now() - startTime,
+      timestamp: new Date().toISOString()
+    });
 
     res.json({
       success: true,
@@ -321,6 +478,42 @@ app.post('/settle', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Settle error:', error);
+
+    settleRequestsTotal.inc({ status: 'failed' });
+    httpRequestDuration.labels('POST', '/settle', '500').observe((Date.now() - startTime) / 1000);
+
+    // Log failed settlement to Supabase
+    const { paymentPayload, paymentRequirements } = req.body;
+    if (paymentPayload?.payload?.authorization) {
+      const { authorization } = paymentPayload.payload;
+      const network = paymentRequirements?.network || 'bsc';
+      const envNetwork = process.env.NETWORK || 'testnet';
+      const chainId = envNetwork === 'mainnet' ? 56 : 97;
+      const selectedProvider = envNetwork === 'mainnet' ? provider : testnetProvider;
+      const tokenInfo = await getTokenInfo(paymentPayload.token, selectedProvider);
+
+      await logToSupabase('settle_transactions', {
+        transaction_hash: null,
+        payer: authorization.from,
+        recipient: authorization.to,
+        token: paymentPayload.token,
+        token_symbol: tokenInfo.symbol,
+        amount: authorization.value,
+        amount_formatted: ethers.formatUnits(authorization.value, tokenInfo.decimals),
+        nonce: authorization.nonce,
+        network,
+        chain_id: chainId,
+        block_number: null,
+        gas_used: null,
+        gas_price: null,
+        success: false,
+        error_reason: error.message,
+        transaction_time_ms: null,
+        total_time_ms: Date.now() - startTime,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     res.status(500).json({
       success: false,
       network: req.body.paymentRequirements?.network || 'bsc',
@@ -348,7 +541,8 @@ app.get('/', (_req, res) => {
       '/health': 'GET - Health check',
       '/list': 'GET - List supported tokens',
       '/verify': 'POST - Verify payment authorization',
-      '/settle': 'POST - Execute payment on-chain'
+      '/settle': 'POST - Execute payment on-chain',
+      '/metrics': 'GET - Prometheus metrics'
     }
   });
 });
@@ -432,6 +626,19 @@ app.get('/health', (_req, res) => {
   });
 });
 
+/**
+ * GET /metrics
+ * Prometheus metrics endpoint
+ */
+app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (error: any) {
+    res.status(500).end(error.message);
+  }
+});
+
 const PORT = process.env.PORT || 3402;
 
 app.listen(PORT, () => {
@@ -439,6 +646,12 @@ app.listen(PORT, () => {
   console.log(`📡 Listening on http://localhost:${PORT}`);
   console.log(`🔑 Relayer: ${relayerWallet.address}`);
   console.log(`📝 Contract: ${B402_RELAYER_ADDRESS}`);
+  console.log(`📊 Metrics: http://localhost:${PORT}/metrics`);
+  if (supabase) {
+    console.log('💾 Supabase logging: ENABLED');
+  } else {
+    console.log('💾 Supabase logging: DISABLED');
+  }
   console.log('');
   console.log('Ready to process BNB Chain payments! 🚀');
 });
