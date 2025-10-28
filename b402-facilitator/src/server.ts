@@ -396,13 +396,13 @@ app.post('/verify', async (req, res) => {
       payer: authorization.from,
     });
   } catch (error: any) {
-    console.error('Verify error:', error);
+    // Don't log errors - spams Railway logs
     verifyRequestsTotal.inc({ status: 'error' });
     httpRequestDuration.labels('POST', '/verify', '500').observe((Date.now() - startTime) / 1000);
 
     res.status(500).json({
       isValid: false,
-      invalidReason: error.message,
+      invalidReason: 'Verification failed',
     });
   }
 });
@@ -523,8 +523,7 @@ app.post('/settle', async (req, res) => {
       blockNumber: receipt.blockNumber,
     });
   } catch (error: any) {
-    console.error('Settle error:', error);
-
+    // Don't log errors - spams Railway logs
     settleRequestsTotal.inc({ status: 'failed' });
     httpRequestDuration.labels('POST', '/settle', '500').observe((Date.now() - startTime) / 1000);
 
