@@ -4,6 +4,7 @@
 export * from './types';
 export * from './wallet';
 export * from './facilitator';
+export * from './simple';
 
 // Constants
 export const USDT_BSC = "0x55d398326f99059ff775485246999027b3197955";

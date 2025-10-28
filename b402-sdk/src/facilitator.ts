@@ -22,7 +22,7 @@ export class DefaultFacilitatorClient implements FacilitatorClient {
 
   constructor(config?: FacilitatorConfig) {
     // Default to b402.ai facilitator
-    const url = config?.url || 'https://api.b402.ai';
+    const url = config?.url || 'https://facilitator.b402.ai';
 
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       throw new Error(`Invalid URL ${url}, must start with http:// or https://`);
@@ -42,6 +42,20 @@ export class DefaultFacilitatorClient implements FacilitatorClient {
     requirements: B402PaymentRequirements
   ): Promise<B402VerifyResponse> {
     try {
+      // Convert numeric fields to strings for facilitator validation
+      const payloadForAPI = {
+        ...payload,
+        payload: {
+          authorization: {
+            ...payload.payload.authorization,
+            value: payload.payload.authorization.value.toString(),
+            validAfter: payload.payload.authorization.validAfter.toString(),
+            validBefore: payload.payload.authorization.validBefore.toString(),
+          },
+          signature: payload.payload.signature,
+        },
+      };
+
       const response = await fetch(`${this.config.url}/verify`, {
         method: 'POST',
         headers: {
@@ -49,8 +63,7 @@ export class DefaultFacilitatorClient implements FacilitatorClient {
           ...(this.config.apiKey && { 'Authorization': `Bearer ${this.config.apiKey}` }),
         },
         body: JSON.stringify({
-          x402Version: payload.x402Version,
-          paymentPayload: payload,
+          paymentPayload: payloadForAPI,
           paymentRequirements: requirements,
         }),
       });
@@ -84,6 +97,20 @@ export class DefaultFacilitatorClient implements FacilitatorClient {
     requirements: B402PaymentRequirements
   ): Promise<B402SettleResponse> {
     try {
+      // Convert numeric fields to strings for facilitator validation
+      const payloadForAPI = {
+        ...payload,
+        payload: {
+          authorization: {
+            ...payload.payload.authorization,
+            value: payload.payload.authorization.value.toString(),
+            validAfter: payload.payload.authorization.validAfter.toString(),
+            validBefore: payload.payload.authorization.validBefore.toString(),
+          },
+          signature: payload.payload.signature,
+        },
+      };
+
       const response = await fetch(`${this.config.url}/settle`, {
         method: 'POST',
         headers: {
@@ -91,8 +118,7 @@ export class DefaultFacilitatorClient implements FacilitatorClient {
           ...(this.config.apiKey && { 'Authorization': `Bearer ${this.config.apiKey}` }),
         },
         body: JSON.stringify({
-          x402Version: payload.x402Version,
-          paymentPayload: payload,
+          paymentPayload: payloadForAPI,
           paymentRequirements: requirements,
         }),
       });

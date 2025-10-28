@@ -1,26 +1,44 @@
 {
-  "name": "b402-protocol",
+  "name": "b402-sdk",
   "version": "1.0.0",
-  "description": "B402 Gasless Payment Protocol for BNB Chain",
-  "main": "index.js",
+  "description": "Accept crypto payments with zero gas fees on BSC - USD1, USDT, USDC",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
-    "deploy:testnet": "NETWORK=testnet tsx scripts/deploy-relayer-v2.ts",
-    "deploy:mainnet": "NETWORK=mainnet tsx scripts/deploy-relayer-v2.ts",
-    "test": "tsx demo-simple.ts",
-    "test:mainnet": "tsx demo-mainnet.ts"
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": ["b402", "gasless", "bnb-chain", "usdt", "meta-transactions"],
+  "keywords": [
+    "b402",
+    "payments",
+    "bsc",
+    "binance-smart-chain",
+    "usd1",
+    "usdt",
+    "usdc",
+    "meta-transactions",
+    "eip-712"
+  ],
   "author": "Vistara Labs",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vistaralabs/b402-protocol"
+  },
+  "homepage": "https://b402.ai",
   "dependencies": {
-    "ethers": "^6.15.0",
-    "dotenv": "^17.2.3",
-    "solc": "^0.8.24"
+    "ethers": "^6.15.0"
   },
   "devDependencies": {
     "@types/node": "^20",
-    "typescript": "^5",
-    "tsx": "^4.7.0",
-    "@openzeppelin/contracts": "^5.0.0"
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

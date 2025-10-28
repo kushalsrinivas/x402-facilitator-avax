@@ -180,7 +180,7 @@
 <body>
     <div class="container">
         <h1>🎮 Agent Arena</h1>
-        <div class="subtitle">Pay 1 USDT, Get 100 AART Tokens <span class="badge">0 GAS</span></div>
+        <div class="subtitle">Pay 1 USD1, Get Service <span class="badge">0 GAS</span></div>
 
         <!-- Wallet Connection -->
         <div id="connectSection">
@@ -198,8 +198,8 @@
             <div class="card">
                 <h3>Your Balances</h3>
                 <div class="info-row">
-                    <span>USDT Balance</span>
-                    <span id="usdtBalance">Loading...</span>
+                    <span>USD1 Balance</span>
+                    <span id="usd1Balance">Loading...</span>
                 </div>
                 <div class="info-row">
                     <span>AART Balance</span>
@@ -211,7 +211,7 @@
                 <h3>Get Reward Tokens</h3>
                 <div class="info-row">
                     <span>You Pay</span>
-                    <span>1 USDT</span>
+                    <span>1 USD1</span>
                 </div>
                 <div class="info-row">
                     <span>You Get</span>
@@ -228,7 +228,7 @@
 
             <!-- Steps -->
             <div id="stepsSection" class="hidden">
-                <div class="step" id="step1">1. Approving USDT...</div>
+                <div class="step" id="step1">1. Approving USD1...</div>
                 <div class="step" id="step2">2. Signing payment (0 gas)...</div>
                 <div class="step" id="step3">3. Settling payment...</div>
                 <div class="step" id="step4">4. Minting rewards...</div>
@@ -237,24 +237,23 @@
 
             <!-- Action Button -->
             <button class="btn-primary" id="payButton" onclick="payAndGetTokens()">
-                Pay 1 USDT & Get 100 AART
+                Pay 1 USD1
             </button>
 
             <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
-                BSC Testnet Only
+                BSC Mainnet - USD1 Payments
             </div>
         </div>
     </div>
 
     <script>
         const CONFIG = {
-            rpc: 'https://data-seed-prebsc-1-s1.binance.org:8545',
-            chainId: 97,
-            usdt: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd',
-            relayer: '0xd67eF16fa445101Ef1e1c6A9FB9F3014f1d60DE6',
-            rewardToken: '0xCB17a4c168a228A626e235bEBBdfe05942658fC3',
-            agentWallet: '0x40D85e646AfE73eC45981f69273625f7C769E494',
-            facilitatorUrl: 'http://localhost:3402'
+            rpc: 'https://bsc-dataseed.binance.org',
+            chainId: 56,
+            usd1: '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d',
+            relayer: '0xE1C2830d5DDd6B49E9c46EbE03a98Cb44CD8eA5a',
+            rewarderWallet: '0xa23beff60ad1b91f35e91476475f9e3eba0897d7',
+            facilitatorUrl: 'http://localhost:3000'
         };
 
         let provider, signer, userAddress;
@@ -271,11 +270,11 @@
                 signer = await provider.getSigner();
                 userAddress = await signer.getAddress();
 
-                // Switch to BSC Testnet
+                // Switch to BSC Mainnet
                 try {
                     await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: '0x61' }], // 97 in hex
+                        params: [{ chainId: '0x38' }], // 56 in hex
                     });
                 } catch (switchError) {
                     // Chain not added, add it
@@ -302,21 +301,15 @@
         }
 
         async function loadBalances() {
-            const usdtContract = new ethers.Contract(CONFIG.usdt, [
+            const usd1Contract = new ethers.Contract(CONFIG.usd1, [
                 'function balanceOf(address) view returns (uint256)',
                 'function decimals() view returns (uint8)'
             ], provider);
 
-            const tokenContract = new ethers.Contract(CONFIG.rewardToken, [
-                'function balanceOf(address) view returns (uint256)',
-                'function decimals() view returns (uint8)'
-            ], provider);
+            const usd1Balance = await usd1Contract.balanceOf(userAddress);
 
-            const usdtBalance = await usdtContract.balanceOf(userAddress);
-            const tokenBalance = await tokenContract.balanceOf(userAddress);
-
-            document.getElementById('usdtBalance').textContent = ethers.formatUnits(usdtBalance, 18) + ' USDT';
-            document.getElementById('aartBalance').textContent = ethers.formatUnits(tokenBalance, 18) + ' AART';
+            document.getElementById('usd1Balance').textContent = ethers.formatUnits(usd1Balance, 18) + ' USD1';
+            document.getElementById('aartBalance').textContent = 'N/A';
         }
 
         function showStatus(message, type = 'info') {
@@ -342,9 +335,9 @@
             try {
                 // Step 1: Approve USDT
                 updateStep(1, 'active');
-                showStatus('Approving USDT to relayer...', 'info');
+                showStatus('Approving USD1 to relayer...', 'info');
 
-                const usdtContract = new ethers.Contract(CONFIG.usdt, [
+                const usdtContract = new ethers.Contract(CONFIG.usd1, [
                     'function approve(address,uint256) returns (bool)',
                     'function allowance(address,address) view returns (uint256)'
                 ], signer);
@@ -386,7 +379,7 @@
 
                 const value = {
                     from: userAddress,
-                    to: CONFIG.agentWallet,
+                    to: CONFIG.rewarderWallet,
                     value: amount.toString(),
                     validAfter,
                     validBefore,
@@ -421,9 +414,8 @@
                 updateStep(5, 'completed');
 
                 showStatus(
-                    `✅ Success! You received 100 AART tokens!
-                    <br><a class="link" href="https://testnet.bscscan.com/tx/${result.paymentTx}" target="_blank">View Payment</a> |
-                    <a class="link" href="https://testnet.bscscan.com/tx/${result.mintTx}" target="_blank">View Mint</a>`,
+                    `✅ Success! Payment sent to rewarder wallet!
+                    <br><a class="link" href="https://bscscan.com/tx/${result.paymentTx}" target="_blank">View Transaction on BSCScan</a>`,
                     'success'
                 );
 
