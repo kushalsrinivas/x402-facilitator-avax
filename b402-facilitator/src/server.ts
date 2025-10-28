@@ -5,12 +5,25 @@ import { ethers, Wallet, Contract } from 'ethers';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import promClient from 'prom-client';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Rate limiting - protect against abuse
+const limiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 requests per minute per IP
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting to all endpoints
+app.use(limiter);
 
 // Supabase setup
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
@@ -62,8 +75,6 @@ const settleTransactionTime = new promClient.Histogram({
 });
 
 // Configuration
-const BSC_RPC = process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org';
-const BSC_TESTNET_RPC = process.env.BSC_TESTNET_RPC_URL || 'https://data-seed-prebsc-1-s1.binance.org:8545';
 const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY!;
 const B402_RELAYER_ADDRESS = process.env.B402_RELAYER_ADDRESS!;
 
@@ -72,7 +83,10 @@ if (!RELAYER_PRIVATE_KEY || !B402_RELAYER_ADDRESS) {
   process.exit(1);
 }
 
-// Provider and wallet
+// RPC configuration (use Alchemy or set BSC_RPC_URL env var)
+const BSC_RPC = process.env.BSC_RPC_URL || 'https://bsc-dataseed.bnbchain.org';
+const BSC_TESTNET_RPC = process.env.BSC_TESTNET_RPC_URL || 'https://data-seed-prebsc-1-s1.binance.org:8545';
+
 const provider = new ethers.JsonRpcProvider(BSC_RPC);
 const testnetProvider = new ethers.JsonRpcProvider(BSC_TESTNET_RPC);
 const relayerWallet = new Wallet(RELAYER_PRIVATE_KEY);
@@ -109,11 +123,37 @@ async function logToSupabase(table: string, data: any) {
   }
 }
 
+// Token info cache - avoid repeated RPC calls
+const tokenInfoCache = new Map<string, { decimals: number; symbol: string; name: string }>();
+
+// Known token addresses and their info (hardcoded for common tokens)
+const KNOWN_TOKENS: Record<string, { decimals: number; symbol: string; name: string }> = {
+  // BSC Mainnet
+  '0x55d398326f99059fF775485246999027B3197955': { decimals: 18, symbol: 'USDT', name: 'Tether USD' },
+  '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d': { decimals: 18, symbol: 'USDC', name: 'USD Coin' },
+  '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d': { decimals: 18, symbol: 'USD1', name: 'World Liberty Financial USD' },
+  // BSC Testnet
+  '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd': { decimals: 6, symbol: 'USDT', name: 'Tether USD (Testnet)' },
+};
+
 /**
- * Get token information dynamically from the blockchain
+ * Get token information dynamically from the blockchain (with caching)
  * Supports any ERC20 token (USDT, USDC, BUSD, DAI, etc.)
  */
-async function getTokenInfo(tokenAddress: string, provider: ethers.JsonRpcProvider) {
+async function getTokenInfo(tokenAddress: string, provider: ethers.Provider) {
+  const addr = tokenAddress.toLowerCase();
+
+  // Check known tokens first (instant, no RPC call)
+  if (KNOWN_TOKENS[tokenAddress]) {
+    return KNOWN_TOKENS[tokenAddress];
+  }
+
+  // Check cache (instant, no RPC call)
+  if (tokenInfoCache.has(addr)) {
+    return tokenInfoCache.get(addr)!;
+  }
+
+  // Fetch from blockchain (only if not in cache)
   try {
     const token = new Contract(tokenAddress, ERC20_ABI, provider);
 
@@ -123,19 +163,25 @@ async function getTokenInfo(tokenAddress: string, provider: ethers.JsonRpcProvid
       token.name()
     ]);
 
-    return {
+    const info = {
       decimals: Number(decimals),
       symbol,
       name
     };
+
+    // Cache for future requests
+    tokenInfoCache.set(addr, info);
+
+    return info;
   } catch (error) {
-    console.warn(`⚠️  Could not fetch token info for ${tokenAddress}, using defaults`);
-    // Fallback to USDT defaults if token info fetch fails
-    return {
-      decimals: 6,
+    // Fallback defaults (cache these too to avoid retrying failed tokens)
+    const fallback = {
+      decimals: 18,
       symbol: 'TOKEN',
       name: 'Unknown Token'
     };
+    tokenInfoCache.set(addr, fallback);
+    return fallback;
   }
 }
 
