@@ -1,4 +1,4 @@
-// b402 Facilitator Service - Matches x402.org API
+// A402 Facilitator Service - Avalanche C-Chain gasless payments
 import express from 'express';
 import cors from 'cors';
 import { ethers, Wallet, Contract } from 'ethers';
@@ -80,23 +80,23 @@ const settleTransactionTime = new promClient.Histogram({
 
 // Configuration
 const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY!;
-const B402_RELAYER_ADDRESS = process.env.B402_RELAYER_ADDRESS!;
+const A402_RELAYER_ADDRESS = process.env.A402_RELAYER_ADDRESS!;
 
-if (!RELAYER_PRIVATE_KEY || !B402_RELAYER_ADDRESS) {
-  console.error('❌ Missing required env vars: RELAYER_PRIVATE_KEY, B402_RELAYER_ADDRESS');
+if (!RELAYER_PRIVATE_KEY || !A402_RELAYER_ADDRESS) {
+  console.error('❌ Missing required env vars: RELAYER_PRIVATE_KEY, A402_RELAYER_ADDRESS');
   process.exit(1);
 }
 
-// RPC configuration (use Alchemy or set BSC_RPC_URL env var)
-const BSC_RPC = process.env.BSC_RPC_URL || 'https://bsc-dataseed.bnbchain.org';
-const BSC_TESTNET_RPC = process.env.BSC_TESTNET_RPC_URL || 'https://data-seed-prebsc-1-s1.binance.org:8545';
+// RPC configuration for Avalanche C-Chain
+const AVAX_RPC = process.env.AVAX_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc';
+const AVAX_TESTNET_RPC = process.env.AVAX_TESTNET_RPC_URL || 'https://api.avax-test.network/ext/bc/C/rpc';
 
-const provider = new ethers.JsonRpcProvider(BSC_RPC);
-const testnetProvider = new ethers.JsonRpcProvider(BSC_TESTNET_RPC);
+const provider = new ethers.JsonRpcProvider(AVAX_RPC);
+const testnetProvider = new ethers.JsonRpcProvider(AVAX_TESTNET_RPC);
 const relayerWallet = new Wallet(RELAYER_PRIVATE_KEY);
 
-// B402Relayer ABI
-const B402_ABI = [
+// A402Relayer ABI (same as B402)
+const A402_ABI = [
   "function transferWithAuthorization(address token, address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s) external",
   "function authorizationState(address authorizer, bytes32 nonce) external view returns (bool)",
 ];
@@ -132,12 +132,13 @@ const tokenInfoCache = new Map<string, { decimals: number; symbol: string; name:
 
 // Known token addresses and their info (hardcoded for common tokens)
 const KNOWN_TOKENS: Record<string, { decimals: number; symbol: string; name: string }> = {
-  // BSC Mainnet
-  '0x55d398326f99059fF775485246999027B3197955': { decimals: 18, symbol: 'USDT', name: 'Tether USD' },
-  '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d': { decimals: 18, symbol: 'USDC', name: 'USD Coin' },
-  '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d': { decimals: 18, symbol: 'USD1', name: 'World Liberty Financial USD' },
-  // BSC Testnet
-  '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd': { decimals: 6, symbol: 'USDT', name: 'Tether USD (Testnet)' },
+  // Avalanche C-Chain Mainnet
+  '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7': { decimals: 6, symbol: 'USDT', name: 'Tether USD' },
+  '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E': { decimals: 6, symbol: 'USDC', name: 'USD Coin' },
+  '0xc7198437980c041c805A1EDcbA50c1Ce5db95118': { decimals: 6, symbol: 'USDT.e', name: 'Tether USD (Bridged)' },
+  '0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664': { decimals: 6, symbol: 'USDC.e', name: 'USD Coin (Bridged)' },
+  // Avalanche Fuji Testnet
+  '0x9e9ab4D5e5e7D7E7E5e5E5E5E5E5E5E5E5E5E5E5': { decimals: 6, symbol: 'USDT', name: 'Tether USD (Testnet)' },
 };
 
 /**
@@ -216,7 +217,7 @@ app.post('/verify', async (req, res) => {
     }
 
     const { authorization, signature } = paymentPayload.payload;
-    const network = paymentRequirements.network || 'bsc';
+    const network = paymentRequirements.network || 'avalanche';
 
     // Validate authorization fields
     if (!authorization.from || !authorization.to || !authorization.value ||
@@ -230,7 +231,7 @@ app.post('/verify', async (req, res) => {
 
     // Select provider based on NETWORK env var
     const envNetwork = process.env.NETWORK || 'testnet';
-    const chainId = envNetwork === 'mainnet' ? 56 : 97;
+    const chainId = envNetwork === 'mainnet' ? 43114 : 43113; // Avalanche C-Chain IDs
     const selectedProvider = envNetwork === 'mainnet' ? provider : testnetProvider;
 
     // Get token info dynamically
@@ -238,14 +239,14 @@ app.post('/verify', async (req, res) => {
 
     // Create relayer contract instance
     const relayer = new Contract(
-      B402_RELAYER_ADDRESS,
-      B402_ABI,
+      A402_RELAYER_ADDRESS,
+      A402_ABI,
       selectedProvider
     );
 
     // Verify signature locally (EIP-712)
     const domain = {
-      name: "B402",
+      name: "A402",
       version: "1",
       chainId: chainId,
       verifyingContract: paymentRequirements.relayerContract,
@@ -446,7 +447,7 @@ app.post('/settle', async (req, res) => {
     }
 
     const { authorization, signature } = paymentPayload.payload;
-    const network = paymentRequirements.network || 'bsc';
+    const network = paymentRequirements.network || 'avalanche';
 
     // Validate authorization fields
     if (!authorization.from || !authorization.to || !authorization.value ||
@@ -461,12 +462,12 @@ app.post('/settle', async (req, res) => {
 
     // Select provider based on NETWORK env var
     const envNetwork = process.env.NETWORK || 'testnet';
-    const chainId = envNetwork === 'mainnet' ? 56 : 97;
+    const chainId = envNetwork === 'mainnet' ? 43114 : 43113; // Avalanche C-Chain IDs
     const selectedProvider = envNetwork === 'mainnet' ? provider : testnetProvider;
     const signer = relayerWallet.connect(selectedProvider);
     const relayer = new Contract(
-      B402_RELAYER_ADDRESS,
-      B402_ABI,
+      A402_RELAYER_ADDRESS,
+      A402_ABI,
       signer
     );
 
@@ -478,7 +479,7 @@ app.post('/settle', async (req, res) => {
 
     // Execute transferWithAuthorization
     const tx = await relayer.transferWithAuthorization(
-      paymentPayload.token, // USDT address
+      paymentPayload.token, // Token address (USDT, USDC, etc.)
       authorization.from,
       authorization.to,
       authorization.value,
@@ -547,9 +548,9 @@ app.post('/settle', async (req, res) => {
     const { paymentPayload, paymentRequirements } = req.body;
     if (paymentPayload?.payload?.authorization) {
       const { authorization } = paymentPayload.payload;
-      const network = paymentRequirements?.network || 'bsc';
+      const network = paymentRequirements?.network || 'avalanche';
       const envNetwork = process.env.NETWORK || 'testnet';
-      const chainId = envNetwork === 'mainnet' ? 56 : 97;
+      const chainId = envNetwork === 'mainnet' ? 43114 : 43113; // Avalanche C-Chain IDs
       const selectedProvider = envNetwork === 'mainnet' ? provider : testnetProvider;
       const tokenInfo = await getTokenInfo(paymentPayload.token, selectedProvider);
 
@@ -577,7 +578,7 @@ app.post('/settle', async (req, res) => {
 
     res.status(500).json({
       success: false,
-      network: req.body.paymentRequirements?.network || 'bsc',
+      network: req.body.paymentRequirements?.network || 'avalanche',
       errorReason: error.message,
     });
   }
@@ -592,11 +593,11 @@ app.get('/', (_req, res) => {
   const isMainnet = envNetwork === 'mainnet';
 
   res.json({
-    service: 'B402 Facilitator',
+    service: 'A402 Facilitator',
     version: '1.0.0',
-    network: isMainnet ? 'bsc-mainnet' : 'bsc-testnet',
-    chainId: isMainnet ? 56 : 97,
-    relayerContract: B402_RELAYER_ADDRESS,
+    network: isMainnet ? 'avalanche-mainnet' : 'avalanche-testnet',
+    chainId: isMainnet ? 43114 : 43113,
+    relayerContract: A402_RELAYER_ADDRESS,
     endpoints: {
       '/': 'GET - API information',
       '/health': 'GET - Health check',
@@ -614,17 +615,18 @@ app.get('/', (_req, res) => {
  */
 app.get('/list', async (_req, res) => {
   try {
-    // Known token addresses on BSC
-    const USDT_MAINNET = '0x55d398326f99059fF775485246999027B3197955';
-    const USD1_MAINNET = '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d';
-    const USDC_MAINNET = '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d';
-    const USDT_TESTNET = '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd';
+    // Known token addresses on Avalanche C-Chain
+    const USDT_MAINNET = '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7';
+    const USDC_MAINNET = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
+    const USDT_E_MAINNET = '0xc7198437980c041c805A1EDcbA50c1Ce5db95118';
+    const USDC_E_MAINNET = '0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664';
+    const USDT_TESTNET = '0x9e9ab4D5e5e7D7E7E5e5E5E5E5E5E5E5E5E5E5E5'; // Placeholder - update with actual testnet address
 
     const envNetwork = process.env.NETWORK || 'testnet';
     const isMainnet = envNetwork === 'mainnet';
 
     const supportedAssets = isMainnet
-      ? [USDT_MAINNET, USD1_MAINNET, USDC_MAINNET]
+      ? [USDT_MAINNET, USDC_MAINNET, USDT_E_MAINNET, USDC_E_MAINNET]
       : [USDT_TESTNET];
 
     const selectedProvider = isMainnet ? provider : testnetProvider;
@@ -638,26 +640,27 @@ app.get('/list', async (_req, res) => {
           symbol: info.symbol,
           name: info.name,
           decimals: info.decimals,
-          network: isMainnet ? 'bsc' : 'bsc-testnet'
+          network: isMainnet ? 'avalanche' : 'avalanche-testnet'
         };
       })
     );
 
     res.json({
-      facilitator: 'b402',
+      facilitator: 'a402',
       version: '1.0.0',
       networks: [
         {
-          network: isMainnet ? 'bsc' : 'bsc-testnet',
-          chainId: isMainnet ? 56 : 97,
-          relayerContract: B402_RELAYER_ADDRESS,
+          network: isMainnet ? 'avalanche' : 'avalanche-testnet',
+          chainId: isMainnet ? 43114 : 43113,
+          relayerContract: A402_RELAYER_ADDRESS,
           supportedAssets: tokenDetails
         }
       ],
       features: [
         'gasless-payments',
         'eip712-signatures',
-        'dynamic-token-support'
+        'dynamic-token-support',
+        'avalanche-c-chain'
       ],
       endpoints: {
         verify: '/verify',
@@ -681,8 +684,8 @@ app.get('/list', async (_req, res) => {
 app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
-    service: 'b402-facilitator',
-    network: 'bsc',
+    service: 'a402-facilitator',
+    network: 'avalanche',
     relayer: relayerWallet.address,
   });
 });
@@ -703,10 +706,15 @@ app.get('/metrics', async (_req, res) => {
 const PORT = process.env.PORT || 3402;
 
 app.listen(PORT, () => {
-  console.log('🔥 b402 Facilitator Service');
+  const envNetwork = process.env.NETWORK || 'testnet';
+  const isMainnet = envNetwork === 'mainnet';
+  
+  console.log('🔥 A402 Facilitator Service - Avalanche C-Chain');
   console.log(`📡 Listening on http://localhost:${PORT}`);
   console.log(`🔑 Relayer: ${relayerWallet.address}`);
-  console.log(`📝 Contract: ${B402_RELAYER_ADDRESS}`);
+  console.log(`📝 Contract: ${A402_RELAYER_ADDRESS}`);
+  console.log(`🌐 Network: ${isMainnet ? 'Avalanche Mainnet' : 'Avalanche Fuji Testnet'}`);
+  console.log(`⛓️  Chain ID: ${isMainnet ? 43114 : 43113}`);
   console.log(`📊 Metrics: http://localhost:${PORT}/metrics`);
   if (supabase) {
     console.log('💾 Supabase logging: ENABLED');
@@ -714,5 +722,5 @@ app.listen(PORT, () => {
     console.log('💾 Supabase logging: DISABLED');
   }
   console.log('');
-  console.log('Ready to process BNB Chain payments! 🚀');
+  console.log('Ready to process Avalanche C-Chain payments! 🚀❄️');
 });

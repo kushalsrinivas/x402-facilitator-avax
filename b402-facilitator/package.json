@@ -1,7 +1,7 @@
 {
-  "name": "b402-facilitator",
+  "name": "a402-facilitator",
   "version": "0.1.0",
-  "description": "b402.ai facilitator service - x402 for BNB Chain",
+  "description": "A402 facilitator service - gasless payments for Avalanche C-Chain",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
@@ -9,9 +9,12 @@
     "start": "node dist/server.js"
   },
   "keywords": [
-    "b402",
+    "a402",
     "facilitator",
-    "bnb-chain"
+    "avalanche",
+    "avax",
+    "c-chain",
+    "gasless-payments"
   ],
   "author": "Vistara Labs",
   "license": "MIT",

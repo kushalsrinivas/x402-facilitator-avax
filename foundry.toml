@@ -1,0 +1,15 @@
+[profile.default]
+src = "b402-facilitator/contracts"
+out = "out"
+libs = ["lib"]
+remappings = [
+    "@openzeppelin/=lib/openzeppelin-contracts/"
+]
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+
+[rpc_endpoints]
+avalanche = "https://api.avax.network/ext/bc/C/rpc"
+fuji = "https://api.avax-test.network/ext/bc/C/rpc"
+

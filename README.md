@@ -1,378 +1,223 @@
-# B402 Protocol
+# A402 - Gasless Payment Facilitator for Avalanche C-Chain
 
-> BSC-native, multi-token gasless payment facilitator
-
-Process x402-style payments on Binance Smart Chain with one drop-in endpoint. No API keys, no blockchain headaches—just plug and play.
-
----
-
-## Quick Start
-
-**Facilitator URL:** `https://facilitator.b402.ai`
-
-### Drop-in Setup
-
-1. **Point your merchant at the facilitator** and you're done.
-
-2. Choose a **network**: `bsc` (mainnet) or `bsc-testnet`
-
-3. **Ship**. The facilitator verifies & settles payments on your behalf.
-
-```bash
-# Try the Echo Merchant demo
-cd examples/echo-merchant
-npm install
-export MERCHANT_PRIVATE_KEY=0x...
-npm start
-
-# Open http://localhost:3001
-```
-
-**[→ Full Getting Started Guide](docs/GETTING_STARTED.md)**
-
----
+**A402** enables gasless token transfers on Avalanche C-Chain. Users can send USDT, USDC, and other ERC20 tokens without holding AVAX for gas fees.
 
 ## Features
 
-### ⚡ Gasless Experience
-No BNB required for buyers or merchants. The facilitator covers network fees and handles verification/settlement so you can focus on your product.
+- ✅ **Gasless transfers** - Users sign transactions, facilitator pays gas
+- ✅ **EIP-712 signatures** - Secure off-chain authorization
+- ✅ **Multi-token support** - USDT, USDC, and any ERC20 token
+- ✅ **Replay protection** - Nonce-based security
+- ✅ **Production ready** - Rate limiting, monitoring, logging
 
-### 🔓 No API Keys Required
-Open API—no registration, no authentication. Just plug & play.
+## How It Works
 
-### 🌐 BSC Native
-Built specifically for Binance Smart Chain ecosystem with USD1, USDT, USDC support.
+```
+┌──────────────────────────────────────────────────────────────┐
+│                   A402 Payment Flow                          │
+└──────────────────────────────────────────────────────────────┘
 
-### 🚀 Drop-in Integration
-Compatible with x402 protocol standards. If you're using PayAI, switching to B402 takes 2 minutes.
+1. User approves relayer contract to spend tokens
+   ↓
+2. User signs EIP-712 payment authorization (off-chain, no gas)
+   ↓
+3. Client sends authorization to facilitator /verify endpoint
+   ↓
+4. Facilitator validates signature, nonce, timing
+   ↓
+5. Client sends to facilitator /settle endpoint
+   ↓
+6. Facilitator submits transaction to blockchain (pays gas in AVAX)
+   ↓
+7. A402Relayer contract executes token transfer
+   ↓
+8. Tokens transferred from user to recipient ✅
+```
 
----
+## Quick Start
 
-## Important Notice
+### Prerequisites
 
-**USE AT YOUR OWN RISK.** This software is provided "as is" without warranty. The smart contracts have not been professionally audited. See [DISCLAIMER.md](DISCLAIMER.md) for full terms.
+- AVAX for gas (testnet: [faucet](https://faucet.avax.network/), mainnet: buy AVAX)
+- [Foundry](https://book.getfoundry.sh/getting-started/installation) or Hardhat installed
+- Node.js 18+
 
----
+### 1. Deploy Smart Contract
 
-## Overview
+```bash
+# Install dependencies
+forge install OpenZeppelin/openzeppelin-contracts --no-git
 
-B402 provides gasless payment functionality similar to Coinbase's x402 protocol, adapted for Binance Smart Chain. Users sign payment authorizations off-chain using EIP-712 signatures, and a relayer contract executes transactions on-chain while covering gas fees. This eliminates the need for users to hold BNB for transaction fees.
+# Compile contracts
+forge build
 
-**Key Difference from x402:** B402 uses a relayer pattern to support standard ERC20 tokens (like BSC USDT) that lack native EIP-3009 support. This provides the same gasless payment experience while working with the existing BSC token ecosystem.
+# Deploy to Fuji testnet
+forge create b402-facilitator/contracts/A402Relayer.sol:A402Relayer \
+  --rpc-url https://api.avax-test.network/ext/bc/C/rpc \
+  --private-key $DEPLOYER_PRIVATE_KEY
 
-## Architecture
+# Save the deployed address
+```
 
-### Core Components
+### 2. Configure Facilitator Service
 
-- **B402Relayer Contract**: Smart contract that validates EIP-712 signatures and executes token transfers
-- **Facilitator Service**: Backend service that verifies signatures and submits transactions to the blockchain
-- **B402 SDK**: Client library for creating payment authorizations and interacting with the facilitator
+```bash
+cd b402-facilitator
 
-### Payment Flow
+# Install dependencies
+npm install
 
-1. User creates payment authorization with EIP-712 signature
-2. User sends authorization to facilitator service
-3. Facilitator verifies signature validity and payment requirements
-4. Facilitator submits transaction to relayer contract
-5. Relayer contract validates signature and executes token transfer
+# Create .env file
+cat > .env << EOF
+NETWORK=testnet
+A402_RELAYER_ADDRESS=0xYourDeployedContractAddress
+RELAYER_PRIVATE_KEY=0xYourRelayerPrivateKey
+PORT=3402
+EOF
+
+# Start the service
+npm run dev
+```
+
+### 3. Test the Setup
+
+```bash
+# Deploy test token
+bash deploy-and-test-token.sh
+
+# Start facilitator (in another terminal)
+cd b402-facilitator && npm run dev
+
+# Send gasless payment
+TEST_TOKEN_ADDRESS=0xYourTokenAddress \
+ts-node test-send-test-token.ts \
+  0xRecipientAddress \
+  0.1
+```
+
+See [QUICKSTART.md](./QUICKSTART.md) for detailed instructions.
 
 ## Repository Structure
 
 ```
-b402-protocol/
-├── contracts/              # Solidity smart contracts
-│   ├── B402Relayer.sol    # V1 relayer contract
-│   └── B402RelayerV2.sol  # V2 relayer contract with enhancements
-├── b402-sdk/              # TypeScript SDK for client integration
+b402/
+├── b402-facilitator/         # Facilitator API service
+│   ├── contracts/            # Smart contracts
+│   │   └── A402Relayer.sol   # Main relayer contract
+│   ├── scripts/              # Deployment scripts
 │   ├── src/
-│   │   ├── wallet.ts      # Payment authorization creation
-│   │   ├── facilitator.ts # Facilitator client
-│   │   └── types.ts       # Type definitions
-├── b402-facilitator/      # Backend service
-│   └── src/
-│       └── server.ts      # API endpoints for verify/settle
-├── scripts/               # Deployment scripts
-│   ├── deploy-relayer.ts
-│   └── deploy-relayer-v2.ts
-└── frontend/              # Example frontend implementation
-```
-
-## Smart Contract
-
-### B402RelayerV2
-
-Main contract for gasless payments.
-
-**Key Functions:**
-
-- `transferWithAuthorization(...)`: Execute gasless payment with EIP-712 signature
-- `setTokenWhitelist(address token, bool status)`: Add/remove supported tokens (owner only)
-- `pause()/unpause()`: Emergency controls (owner only)
-- `cancelAuthorization(...)`: Cancel pending authorization
-
-**Security Features:**
-
-- EIP-712 typed structured data hashing
-- Nonce-based replay protection
-- Token whitelist (only approved tokens can be used)
-- Reentrancy protection
-- Pre-flight balance and allowance checks
-- Pausable functionality for emergencies
-- Ownable access control
-
-### Deployed Contracts
-
-**BSC Mainnet:**
-- RelayerV2: `0xE1C2830d5DDd6B49E9c46EbE03a98Cb44CD8eA5a`
-- Domain Separator: `0xe164e67e4fad6177673aa98478f8e99bc1c5349a107d8d9b6b4fa50aca9ca9c8`
-
-**BSC Testnet:**
-- RelayerV2: `0xd67eF16fa445101Ef1e1c6A9FB9F3014f1d60DE6`
-
-## Installation
-
-### SDK
-
-```bash
-npm install @b402/sdk ethers
-```
-
-### Facilitator Service
-
-```bash
-cd b402-facilitator
-npm install
-```
-
-## Usage
-
-### Creating a Payment Authorization
-
-```typescript
-import { B402Wallet } from '@b402/sdk';
-import { ethers } from 'ethers';
-
-const wallet = new ethers.Wallet(privateKey);
-const b402 = new B402Wallet(wallet, {
-  network: 'bsc-mainnet',
-  relayerAddress: '0xE1C2830d5DDd6B49E9c46EbE03a98Cb44CD8eA5a'
-});
-
-const auth = await b402.createPaymentAuthorization({
-  token: '0x55d398326f99059fF775485246999027B3197955', // USDT
-  to: '0xRecipientAddress',
-  value: ethers.parseUnits('10', 18), // 10 USDT
-  validAfter: Math.floor(Date.now() / 1000),
-  validBefore: Math.floor(Date.now() / 1000) + 3600,
-  nonce: ethers.hexlify(ethers.randomBytes(32))
-});
-```
-
-### Verifying and Settling Payment
-
-```typescript
-import { B402Facilitator } from '@b402/sdk';
-
-const facilitator = new B402Facilitator({
-  baseUrl: 'https://facilitator.b402.network'
-});
-
-// Verify signature
-const verification = await facilitator.verify(paymentPayload, requirements);
-
-if (verification.isValid) {
-  // Submit transaction
-  const result = await facilitator.settle(paymentPayload, requirements);
-  console.log('Transaction:', result.transaction);
-}
-```
-
-### Running the Facilitator Service
-
-```bash
-# Set environment variables
-export RELAYER_PRIVATE_KEY="0x..."
-export B402_RELAYER_ADDRESS="0xE1C2830d5DDd6B49E9c46EbE03a98Cb44CD8eA5a"
-export NETWORK="mainnet"
-
-# Start service
-npm run start
-```
-
-**API Endpoints:**
-
-- `POST /verify`: Verify payment signature
-- `POST /settle`: Execute payment transaction
-- `GET /health`: Service health check
-
-## Deployment
-
-### Deploy Relayer Contract
-
-```bash
-# Set deployer private key
-export DEPLOYER_PRIVATE_KEY="0x..."
-
-# Deploy to testnet
-export NETWORK=testnet
-npx tsx scripts/deploy-relayer-v2.ts
-
-# Deploy to mainnet
-export NETWORK=mainnet
-npx tsx scripts/deploy-relayer-v2.ts
-```
-
-### Environment Variables
-
-**Required for deployment scripts:**
-- `DEPLOYER_PRIVATE_KEY`: Private key for deploying contracts
-- `NETWORK`: Target network (testnet/mainnet)
-
-**Required for facilitator service:**
-- `RELAYER_PRIVATE_KEY`: Private key for relayer wallet (must have BNB for gas)
-- `B402_RELAYER_ADDRESS`: Deployed relayer contract address
-- `NETWORK`: Target network (testnet/mainnet)
-
-**Required for frontend:**
-- `AGENT_PRIVATE_KEY`: Private key for agent wallet
-
-## Security Considerations
-
-### Private Key Management
-
-- Never commit private keys to version control
-- All deployment scripts require environment variables
-- Use hardware wallets or secure key management for production
-- Rotate keys immediately if compromised
-
-### Smart Contract Security
-
-- Contracts use OpenZeppelin security primitives
-- EIP-712 prevents signature replay attacks
-- Nonce tracking prevents double-spending
-- Token whitelist controls supported assets
-- Pausable for emergency situations
-
-### Facilitator Security
-
-- Verify all signatures before submission
-- Check payment requirements match authorization
-- Rate limiting recommended for production
-- Monitor for unusual transaction patterns
-
-## Testing
-
-### End-to-End Test
-
-```bash
-export TEST_USER_PK="0x..."
-npx tsx test-e2e.ts
-```
-
-### Send Test Payment
-
-```bash
-export PRIVATE_KEY="0x..."
-npx tsx send-usdt.ts <recipient> <amount>
+│   │   └── server.ts         # Express API server
+│   └── package.json
+├── contracts/
+│   └── TestToken.sol         # Test ERC20 token
+├── scripts/
+│   └── deploy-test-token.ts  # Test token deployment
+├── foundry.toml              # Foundry configuration
+├── QUICKSTART.md             # Getting started guide
+└── README.md                 # This file
 ```
 
 ## Network Information
 
-### BSC Mainnet
-- Chain ID: 56
-- RPC: https://bsc-dataseed.binance.org
-- USDT: `0x55d398326f99059fF775485246999027B3197955`
-- Explorer: https://bscscan.com
+### Avalanche C-Chain Mainnet
+- **Chain ID**: 43114
+- **RPC**: https://api.avax.network/ext/bc/C/rpc
+- **Explorer**: https://snowtrace.io/
 
-### BSC Testnet
-- Chain ID: 97
-- RPC: https://data-seed-prebsc-1-s1.binance.org:8545
-- USDT: `0x337610d27c682E347C9cD60BD4b3b107C9d34dDd`
-- Explorer: https://testnet.bscscan.com
-- Faucet: https://testnet.bnbchain.org/faucet-smart
+### Avalanche Fuji Testnet
+- **Chain ID**: 43113
+- **RPC**: https://api.avax-test.network/ext/bc/C/rpc
+- **Explorer**: https://testnet.snowtrace.io/
+- **Faucet**: https://faucet.avax.network/
 
-## EIP-712 Specification
+## Supported Tokens (Mainnet)
 
-### Domain Separator
+| Token  | Address                                      | Decimals |
+| ------ | -------------------------------------------- | -------- |
+| USDT   | `0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7` | 6        |
+| USDC   | `0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E` | 6        |
+| USDT.e | `0xc7198437980c041c805A1EDcbA50c1Ce5db95118` | 6        |
+| USDC.e | `0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664` | 6        |
 
-```solidity
-struct EIP712Domain {
-  string name;
-  string version;
-  uint256 chainId;
-  address verifyingContract;
-}
+## API Endpoints
+
+The facilitator service provides:
+
+- `GET /` - Service information
+- `GET /health` - Health check
+- `GET /list` - List supported tokens
+- `POST /verify` - Verify payment authorization
+- `POST /settle` - Execute payment on-chain
+- `GET /metrics` - Prometheus metrics
+
+See [b402-facilitator/README.md](./b402-facilitator/README.md) for API documentation.
+
+## Security Features
+
+### Smart Contract
+- EIP-712 signature verification
+- Nonce-based replay protection
+- Time-bound authorizations (validAfter/validBefore)
+- Token whitelist support (optional)
+- Emergency pause functionality
+- Reentrancy protection
+
+### Facilitator Service
+- Rate limiting (100 req/min per IP)
+- Signature validation before submission
+- Nonce checking (prevents double-spend)
+- Timing verification
+- Audit logging (optional)
+- Prometheus metrics
+
+## Development
+
+```bash
+# Install Foundry
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Compile contracts
+forge build
+
+# Run tests
+forge test
+
+# Deploy to testnet
+forge create contracts/A402Relayer.sol:A402Relayer \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
 ```
 
-### Authorization Type
+## Contributing
 
-```solidity
-struct Authorization {
-  address from;
-  address to;
-  uint256 value;
-  uint256 validAfter;
-  uint256 validBefore;
-  bytes32 nonce;
-}
-```
+Contributions are welcome! Please follow these guidelines:
 
-### Type Hash
-
-```
-keccak256("Authorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)")
-```
-
-## Comparison with x402
-
-B402 provides x402-style gasless payments for BSC. See [TECHNICAL_COMPARISON.md](TECHNICAL_COMPARISON.md) for detailed comparison.
-
-**Use B402 when:**
-- Building on BSC (mainnet or testnet)
-- Need USDT support
-- Want flexibility for multiple ERC20 tokens
-
-**Use x402 when:**
-- Building on Base, Ethereum, or Solana
-- USDC is sufficient
-- Target chain has native EIP-3009 token support
-
-Both protocols achieve the same user experience of gasless payments through different technical implementations.
-
-## Disclaimer
-
-This software is provided "as is" without warranty of any kind. Users assume all risks associated with smart contract usage. The contracts have not been professionally audited. See [DISCLAIMER.md](DISCLAIMER.md) for complete legal terms.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## License
 
 MIT
 
-## Documentation
-
-### Getting Started
-- **[Getting Started Guide](docs/GETTING_STARTED.md)** - Quick setup for merchants and clients
-- **[API Documentation](API_DOCUMENTATION.md)** - Complete API reference
-- **[Echo Merchant Demo](examples/echo-merchant/)** - Test payment flow instantly
-
-### Technical Details
-- [Technical Comparison with x402](TECHNICAL_COMPARISON.md)
-- [Architecture Details](ARCHITECTURE_EXPLAINED.md)
-- [User Guide](USER_GUIDE.md)
-- [Quick Start](QUICK_START.md)
-- [Deployment Guide](DEPLOYMENT_GUIDE.md)
-
-### Try It Now
-
-```bash
-# Merchant: Accept payments
-cd examples/echo-merchant && npm install && npm start
-
-# Client: Send payments
-cd frontend && npm install && npm start
-```
-
 ## Support
 
-- **GitHub**: [Vistara-Labs/b402](https://github.com/Vistara-Labs/b402)
-- **Issues**: [Report bugs](https://github.com/Vistara-Labs/b402/issues)
-- **Docs**: [Full documentation](docs/GETTING_STARTED.md)
+- **GitHub Issues**: https://github.com/Vistara-Labs/b402/issues
+- **Documentation**: See [QUICKSTART.md](./QUICKSTART.md)
+- **Avalanche Discord**: https://discord.gg/RwXY7P6
+
+## Acknowledgments
+
+Built with:
+- [OpenZeppelin](https://openzeppelin.com/) - Smart contract libraries
+- [Foundry](https://book.getfoundry.sh/) - Solidity development toolchain
+- [Express](https://expressjs.com/) - Web framework
+- [ethers.js](https://docs.ethers.org/) - Ethereum library
+
+---
+
+**Ready to build gasless payments on Avalanche! 🏔️❄️**
+
