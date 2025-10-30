@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0xGasless x402 facilitator on Avalanche Chain</title>
+    <link rel="icon" type="image/png" href="https://ik.imagekit.io/mkkdp9u7r/0xgasless/0xgaslesslogo02.png?updatedAt=1761831348873">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(180deg, #e5e7f0 0%, #f0f1f7 100%);
+            color: #1a1a2e;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Liquid Glass Background */
+        .liquid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .liquid-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.4;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .blob-1 {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            top: -150px;
+            left: -50px;
+            animation-delay: 0s;
+        }
+
+        .blob-2 {
+            width: 250px;
+            height: 100px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            top: -100px;
+            right: 20%;
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            width: 200px;
+            height: 100px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            top: -50px;
+            right: -50px;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+            }
+            33% {
+                transform: translate(30px, -20px) scale(1.1);
+            }
+            66% {
+                transform: translate(-20px, 10px) scale(0.9);
+            }
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 80px;
+            border-radius: 20px;
+            padding: 12px 20px;
+            position: relative;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            border-radius: 20px;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.4) 0%, 
+                rgba(255, 255, 255, 0.1) 50%, 
+                rgba(255, 255, 255, 0.3) 100%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #4f5bff;
+        }
+
+        .logo-image {
+            width: 100%;
+            height: 100%;
+            max-width: 200px;
+            background-color: #1a1a2e;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s;
+            &:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            }
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #6b7cff 0%, #4f5bff 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .logo-icon::before,
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 2px;
+        }
+
+        .logo-icon::before {
+            width: 14px;
+            height: 3px;
+            top: 10px;
+        }
+
+        .logo-icon::after {
+            width: 14px;
+            height: 3px;
+            bottom: 10px;
+        }
+
+        nav {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            text-align: center;
+            color: #1a1a2e;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #4a4a5e;
+            font-size: 15px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #4f5bff;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .btn-github {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1a1a2e;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-github:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-docs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: #4f5bff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-docs:hover {
+            background: #3d4ae6;
+            transform: translateY(-1px);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 100px 80px 120px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 64px;
+            font-weight: 700;
+            line-height: 1.15;
+            color: #1a1a2e;
+            margin-bottom: 32px;
+            max-width: 900px;
+        }
+
+        .hero p {
+            font-size: 18px;
+            line-height: 1.6;
+            color: #5a5a6e;
+            margin-bottom: 48px;
+            max-width: 700px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+        }
+
+        .btn-try {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 32px;
+            background: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a2e;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .btn-try:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-facilitator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 32px;
+            background: #4f5bff;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 16px rgba(79, 91, 255, 0.3);
+        }
+
+        .btn-facilitator:hover {
+            background: #3d4ae6;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 91, 255, 0.4);
+        }
+
+        /* Partners Section */
+        .partners {
+            text-align: center;
+            padding: 60px 80px;
+            background: transparent;
+        }
+
+        .partners h3 {
+            font-size: 38px;
+            font-weight: 600;
+            color: #5a5a6e;
+        }
+
+        /* Partners Marquee */
+        .partners-marquee {
+            overflow: hidden;
+            position: relative;
+            mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+            margin-top: 24px;
+        }
+
+        .marquee-track {
+            display: flex;
+            align-items: center;
+            gap: 60px;
+            width: max-content;
+            animation: marquee-scroll 30s linear infinite;
+            opacity: 0.5;
+        }
+
+        @keyframes marquee-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .partner-logo {
+            filter: grayscale(100%);
+            opacity: 0.6;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 80px 80px;
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .feature-content {
+            padding-right: 40px;
+        }
+
+        .feature-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(147, 51, 234, 0.1);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #9333ea;
+            margin-bottom: 24px;
+        }
+
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: rgba(147, 51, 234, 0.15);
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #9333ea;
+        }
+
+        .live-dot {
+            width: 6px;
+            height: 6px;
+            background: #9333ea;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .features h2 {
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: #1a1a2e;
+            margin-bottom: 24px;
+        }
+
+        .features p {
+            font-size: 17px;
+            line-height: 1.6;
+            color: #5a5a6e;
+            margin-bottom: 40px;
+        }
+
+        .btn-get-started {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 32px;
+            background: #4f5bff;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 16px rgba(79, 91, 255, 0.3);
+        }
+
+        .btn-get-started:hover {
+            background: #3d4ae6;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 91, 255, 0.4);
+        }
+
+        .feature-card-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 24px;
+        }
+
+        .check-icon {
+            width: 16px;
+            height: 16px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+        }
+
+        /* Network Diagram */
+        .network-diagram {
+            position: relative;
+            height: 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .network-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 40px;
+            font-size: 20px;
+            font-weight: 700;
+            z-index: 10;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        .network-node {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            border-radius: 32px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a2e;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .node-base {
+            top: 140px;
+            left: 80px;
+        }
+
+        .node-eth {
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .node-avalanche {
+            top: 60px;
+            right: 80px;
+        }
+
+        .connection-line {
+            position: absolute;
+            border: 2px dashed rgba(255, 255, 255, 0.4);
+            z-index: 1;
+        }
+
+        .line-1 {
+            width: 180px;
+            top: 50%;
+            left: 80px;
+            transform: translateY(-50%) rotate(-15deg);
+        }
+
+        .line-2 {
+            width: 140px;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%) rotate(70deg);
+        }
+
+        .line-3 {
+            width: 180px;
+            top: 50%;
+            right: 80px;
+            transform: translateY(-50%) rotate(15deg);
+        }
+
+        .carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 24px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .dot.active {
+            background: white;
+            width: 24px;
+            border-radius: 4px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 80px 100px 10px;
+            background: #f0f0f0;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr;
+            gap: 80px;
+            margin-bottom: 60px;
+        }
+
+        .footer-brand h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #4f5bff;
+            margin-bottom: 20px;
+        }
+
+        .footer-brand p {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #5a5a6e;
+            margin-bottom: 32px;
+            max-width: 400px;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 12px;
+        }
+
+        .social-link {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .social-link:hover {
+            transform: translateY(-2px);
+        }
+
+        .footer-section h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+        }
+
+        .footer-section a {
+            display: block;
+            font-size: 15px;
+            color: #5a5a6e;
+            text-decoration: none;
+            margin-bottom: 14px;
+            transition: color 0.2s;
+        }
+
+        .footer-section a:hover {
+            color: #4f5bff;
+        }
+
+        /* Mobile quick actions under header */
+        .mobile-quick-actions {
+            display: none; /* shown only on small screens */
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: -8px auto 8px; /* tuck under header */
+            max-width: 640px;
+        }
+        
+        @media (max-width: 1024px) {
+            header {
+                padding: 20px 40px;
+                margin: 16px 40px; /* reduce large horizontal margins to avoid crowding */
+            }
+
+            .hero {
+                padding: 60px 40px 80px;
+            }
+
+            .hero h1 {
+                font-size: 48px;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+                padding: 60px 40px;
+                gap: 40px;
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 12px 16px;
+                margin: 12px 16px; /* prevent overflow on very small screens */
+                gap: 12px; /* tighter spacing for children */
+            }
+
+            nav {
+                display: none;
+            }
+
+            .hero {
+                padding: 40px 24px 60px;
+            }
+
+            .hero h1 {
+                font-size: 36px;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+            }
+
+            /* Header content tweaks for mobile */
+            .header-buttons {
+                gap: 8px;
+            }
+
+            .btn-x402facilitator {
+                padding: 8px 12px; /* smaller buttons on mobile */
+                font-size: 13px;
+                background: #f0f0f0;
+                color: #1a1a2e;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s;
+                &:hover {
+                    background: #3d4ae6;
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(79, 91, 255, 0.4);
+                }
+            }
+
+            .btn-github,
+            .btn-docs {
+                padding: 8px 12px; /* smaller buttons on mobile */
+                font-size: 13px;
+            }
+
+            .logo-image {
+                max-width: 120px; /* shrink logo on mobile */
+                padding: 6px;
+            }
+
+            /* Show mobile actions bar */
+            .mobile-quick-actions { display: flex; }
+
+            .partners {
+                padding: 40px 24px;
+            }
+
+            .partners-grid {
+                gap: 32px;
+            }
+
+            .features {
+                padding: 40px 24px;
+            }
+
+            .features h2 {
+                font-size: 32px;
+            }
+
+            footer {
+                padding: 60px 24px 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Liquid Glass Background -->
+    <div class="liquid-bg">
+        <div class="liquid-blob blob-1"></div>
+        <div class="liquid-blob blob-2"></div>
+        <div class="liquid-blob blob-3"></div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div style="display: flex; align-items: center; gap: 100px;">
+            <div class="logo">
+                <img class="logo-image" src="https://ik.imagekit.io/mkkdp9u7r/0xgasless/0xgaslesslogo01.png?updatedAt=1761827634019" alt="0xGaslessx402" width="50" height="50">
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 100px;">
+            <nav>
+                <a href="#x402facilitator">x402 Facilitator</a>
+            </nav>
+        </div>
+        <div class="header-buttons">
+            <button class="btn-github" onclick="window.open('https://github.com/0xgasless', '_blank')">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                Github
+            </button>
+            <button class="btn-docs" onclick="window.open('https://docs.0xgasless.com/', '_blank')">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1zm0 1v10h10V3H3zm2 2h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
+                </svg>
+                Docs
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile quick actions directly below header -->
+    <div class="mobile-quick-actions">
+        <button class="btn-x402facilitator" onclick="window.open('#x402facilitator', '_blank')">
+            <span>x402 Facilitator</span>
+        </button>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>0xGasless x402 Facilitator for the Avalanche Chain</h1>
+        <p>A lightweight, onchain payment standard designed for the autonomous web. This transforms your code, templates, and agents from static projects into active, monetizable assets. The open payment standard for C chain.</p>
+        <div class="hero-buttons">
+            <button class="btn-try" onclick="window.open('https://docs.0xgasless.com/x402','_blank')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M7 10l5 5 5-5"/>
+                    <path d="M12 15V3"/>
+                    <rect x="3" y="17" width="18" height="4" rx="1"/>
+                </svg>
+                Try x402
+            </button>
+            <button class="btn-facilitator" onclick="window.open('https://x402.0xgasless.com/', '_blank')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M9 3v18"/>
+                </svg>
+                Facilitator
+            </button>
+        </div>
+    </section>
+
+    <!-- Partners Section -->
+    <section class="partners">
+        <h3>Ecosystem & Partners</h3>
+        <div class="partners-marquee">
+            <div class="marquee-track">
+                <!-- set 1 -->
+                <svg class="partner-logo" width="100" height="100" viewBox="0 0 40 40">
+                    <text x="5" y="28" font-size="24" font-weight="300" fill="#999">ei</text>
+                </svg>
+                <svg class="partner-logo" width="100" height="100" viewBox="0 0 80 40">
+                    <rect x="10" y="15" width="15" height="15" fill="#999" rx="2"/>
+                    <text x="30" y="28" font-size="18" font-weight="600" fill="#999">base</text>
+                </svg>
+                <svg class="partner-logo" width="100" height="100" viewBox="0 0 100 40">
+                    <text x="10" y="28" font-size="20" font-weight="600" fill="#999">x402</text>
+                </svg>
+                <svg class="partner-logo" width="120" height="100" viewBox="0 0 120 40">
+                    <circle cx="20" cy="20" r="12" fill="none" stroke="#999" stroke-width="2"/>
+                    <text x="35" y="26" font-size="16" font-weight="500" fill="#999">Omniminds</text>
+                </svg>
+                <svg class="partner-logo" width="120" height="100" viewBox="0 0 120 40">
+                    <text x="10" y="26" font-size="18" font-weight="600" fill="#999">ELIZA.OS</text>
+                </svg>
+                <svg class="partner-logo" width="120" height="100" viewBox="0 0 120 40">
+                    <path d="M20 10 L30 20 L20 30 L10 20 Z" fill="#999"/>
+                    <text x="35" y="26" font-size="14" font-weight="600" fill="#999">COMPUTE</text>
+                </svg>
+                <svg class="partner-logo" width="100" height="100" viewBox="0 0 90 40">
+                    <text x="10" y="26" font-size="20" font-weight="600" fill="#999">tip.md</text>
+                </svg>
+
+                <!-- set 2 (duplicate for seamless loop) -->
+                <svg class="partner-logo" width="100" height="100" viewBox="0 0 40 40">
+                    <text x="5" y="28" font-size="24" font-weight="300" fill="#999">ei</text>
+                </svg>
+                <svg class="partner-logo" width="100" height="100" viewBox="0 0 80 40">
+                    <rect x="10" y="15" width="15" height="15" fill="#999" rx="2"/>
+                    <text x="30" y="28" font-size="18" font-weight="600" fill="#999">base</text>
+                </svg>
+                <svg class="partner-logo" width="100" height="100" viewBox="0 0 100 40">
+                    <text x="10" y="28" font-size="20" font-weight="600" fill="#999">x402</text>
+                </svg>
+                <svg class="partner-logo" width="120" height="100" viewBox="0 0 120 40">
+                    <circle cx="20" cy="20" r="12" fill="none" stroke="#999" stroke-width="2"/>
+                    <text x="35" y="26" font-size="16" font-weight="500" fill="#999">Omniminds</text>
+                </svg>
+                <svg class="partner-logo" width="120" height="100" viewBox="0 0 120 40">
+                    <text x="10" y="26" font-size="18" font-weight="600" fill="#999">ELIZA.OS</text>
+                </svg>
+                <svg class="partner-logo" width="120" height="100" viewBox="0 0 120 40">
+                    <path d="M20 10 L30 20 L20 30 L10 20 Z" fill="#999"/>
+                    <text x="35" y="26" font-size="14" font-weight="600" fill="#999">COMPUTE</text>
+                </svg>
+                <svg class="partner-logo" width="100" height="100" viewBox="0 0 90 40">
+                    <text x="10" y="26" font-size="20" font-weight="600" fill="#999">tip.md</text>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="feature-content">
+            <div class="feature-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M9 3v18"/>
+                </svg>
+                x402 Facilitator
+            </div>
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                LIVE
+            </div>
+            <h2>Fast, Secure, and Scalable Payments.</h2>
+            <p>Accept payments from $0.01 in under a second. Perfect for AI agents, microtransactions, and lightning-fast commerce — live on Avalanche.</p>
+            <button class="btn-get-started" onclick="window.open('https://docs.0xgasless.com/x402','_blank')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+                Get Started
+            </button>
+        </div>
+
+        <div class="feature-card">
+            <img class="feature-card-image" src="https://ik.imagekit.io/mkkdp9u7r/0xgasless/x402facilitatorimg.png?updatedAt=1761830083504" alt="0xGaslessx402" width="100" height="100" />
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <div class="logo">
+                    <img class="logo-image" src="https://ik.imagekit.io/mkkdp9u7r/0xgasless/0xgaslesslogo01.png?updatedAt=1761827634019" alt="0xGaslessx402" width="50" height="50">
+                </div>
+                <p style="margin-top: 24px;">Financial Autonomy for AI Agents. Tools and infrastructure for autonomous agent transactions.</p>
+                <div class="social-links">
+                    <a href="https://x.com/0xGasless" class="social-link" target="_blank">
+                        <img src="https://ik.imagekit.io/mkkdp9u7r/0xgasless/xlogo.png?updatedAt=1761830966647" alt="0xGasless Twitter/X" width="40" height="40">
+                    </a>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h4>Developers</h4>
+                <a href="https://docs.0xgasless.com/" target="_blank">Documentation</a>
+                <a href="https://github.com/0xgasless" target="_blank">GitHub</a>
+            </div>
+            <div class="footer-section">
+                <h4>Legal</h4>
+                <a href="#privacy">Privacy Policy</a>
+                <a href="#terms">Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Carousel dots functionality
+        const dots = document.querySelectorAll('.dot');
+        let currentSlide = 0;
+
+        function updateCarousel() {
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentSlide);
+            });
+        }
+
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => {
+                currentSlide = index;
+                updateCarousel();
+            });
+        });
+
+        // Auto-rotate carousel
+        setInterval(() => {
+            currentSlide = (currentSlide + 1) % dots.length;
+            updateCarousel();
+        }, 4000);
+
+        // Smooth scroll for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Button hover effects
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(button => {
+            button.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px)';
+            });
+            button.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body>
+</html>
