@@ -1,11 +1,12 @@
 // A402 Facilitator Service - Avalanche C-Chain gasless payments
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { ethers, Wallet, Contract } from 'ethers';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import promClient from 'prom-client';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 
 dotenv.config();
 
@@ -586,9 +587,17 @@ app.post('/settle', async (req, res) => {
 
 /**
  * GET /
- * Root endpoint - API information and documentation
+ * Root endpoint - Serve the homepage
  */
-app.get('/', (_req, res) => {
+app.get('/', (_req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
+
+/**
+ * GET /api
+ * API information and documentation
+ */
+app.get('/api', (_req: Request, res: Response) => {
   const envNetwork = process.env.NETWORK || 'testnet';
   const isMainnet = envNetwork === 'mainnet';
 
@@ -599,7 +608,8 @@ app.get('/', (_req, res) => {
     chainId: isMainnet ? 43114 : 43113,
     relayerContract: A402_RELAYER_ADDRESS,
     endpoints: {
-      '/': 'GET - API information',
+      '/': 'GET - Homepage',
+      '/api': 'GET - API information',
       '/health': 'GET - Health check',
       '/list': 'GET - List supported tokens',
       '/verify': 'POST - Verify payment authorization',
